@@ -42,7 +42,7 @@
     "wait-on": "^9.5.1"
   },
   "packageManager": "bun@1.4.4",
-  "main": "electron/main.cjs",
+  "main": "electron/main.mjs",
   "build": {
     "appId": "com.condo.management",
     "productName": "Condo Management",

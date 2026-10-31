@@ -1,9 +1,9 @@
-const { app, BrowserWindow, dialog } = require("electron");
-const { createRequire } = require("node:module");
-const net = require("node:net");
-const fs = require("node:fs/promises");
-const path = require("node:path");
-const { spawn } = require("node:child_process");
+import { app, BrowserWindow, dialog } from "electron";
+import { createRequire } from "node:module";
+import net from "node:net";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { spawn } from "node:child_process";
 
 let serverProcess;
 let mainWindow;
