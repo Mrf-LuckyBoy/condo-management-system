@@ -1,5 +1,6 @@
 {
   "name": "condo-management-system",
+  "desktopName": "condo-management",
   "version": "0.1.0",
   "description": "Desktop condominium management application",
   "author": {
@@ -94,7 +95,6 @@
       "target": ["AppImage", "deb"],
       "category": "Utility",
       "maintainer": "Condo Management Maintainers <atsawa.c@gmail.com>",
-      "desktopName": "condo-management",
       "syncDesktopName": true
     }
   },
