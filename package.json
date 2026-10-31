@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "electron:dev": "concurrently -k \"bun run dev -- --hostname 127.0.0.1\" \"wait-on http://127.0.0.1:3000 && electron .\"",
+    "electron:dist": "bun run build && electron-builder",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -28,14 +30,65 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^5.0.5",
+    "concurrently": "^10.0.6",
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "prisma": "7",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wait-on": "^9.5.1"
   },
   "packageManager": "bun@1.4.4",
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.condo.management",
+    "productName": "Condo Management",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "next-app"
+      },
+      {
+        "from": ".next/static",
+        "to": "next-app/.next/static"
+      },
+      {
+        "from": "public",
+        "to": "next-app/public"
+      },
+      {
+        "from": "prisma/migrations/20261031094500_init_condo_backend/migration.sql",
+        "to": "database/migration.sql"
+      }
+    ],
+    "asarUnpack": [
+      "electron/**/*"
+    ],
+    "mac": {
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    }
+  },
   "ignoreScripts": [
     "sharp",
     "unrs-resolver"
