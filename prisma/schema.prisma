@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Building {
+  id           Int              @id @default(autoincrement())
+  buildingName String?          @map("building_name")
+  ownerName    String?          @map("owner_name")
+  createdAt    DateTime?        @default(now()) @map("created_at")
+  updatedAt    DateTime?        @updatedAt @map("updated_at")
+  rooms        Room[]
+  setting      SettingBuilding?
+
+  @@map("buildings")
+}
+
+model SettingBuilding {
+  id                 Int       @id @default(autoincrement())
+  buildingId         Int       @unique @map("building_id")
+  building           Building  @relation(fields: [buildingId], references: [id])
+  electricityPerUnit Float?    @map("electricity_per_unit")
+  waterPerUnit       Float?    @map("water_per_unit")
+  baseMaintain       Float?    @map("base_maintain")
+  trashMaintain      Float?    @map("trash_maintain")
+  meterMaintain      Float?    @map("meter_maintain")
+  createdAt          DateTime? @default(now()) @map("created_at")
+  updatedAt          DateTime? @updatedAt @map("updated_at")
+
+  @@map("setting_building")
+}
+
+model Room {
+  id              Int        @id @default(autoincrement())
+  buildingId      Int        @map("building_id")
+  building        Building   @relation(fields: [buildingId], references: [id])
+  roomNumber      Int?       @map("room_number")
+  rentName        String?    @map("rent_name")
+  rentPrice       Float?     @map("rent_price")
+  electricityUnit Int?       @map("electricity_unit")
+  waterUnit       Int?       @map("water_unit")
+  isOwner         Int?       @default(0) @map("is_owner")
+  isActive        Int?       @default(1) @map("is_active")
+  createdAt       DateTime?  @default(now()) @map("created_at")
+  updatedAt       DateTime?  @updatedAt @map("updated_at")
+  billings        Billing[]
+  meterLogs       MeterLog[]
+
+  @@map("rooms")
+}
+
+model Billing {
+  id             Int       @id @default(autoincrement())
+  roomId         Int       @map("room_id")
+  room           Room      @relation(fields: [roomId], references: [id])
+  electricity    Float?
+  water          Float?
+  maintain       Float?
+  trashMaintain  Float?    @map("trash_maintain")
+  meterMaintain  Float?    @map("meter_maintain")
+  isPayRent      Int?      @default(0) @map("is_pay_rent")
+  isPaid         Int?      @default(0) @map("is_paid")
+  createdAt      DateTime? @default(now()) @map("created_at")
+  updatedAt      DateTime? @updatedAt @map("updated_at")
+
+  @@map("billing")
+}
+
+model MeterLog {
+  id                  Int       @id @default(autoincrement())
+  roomId              Int       @map("room_id")
+  room                Room      @relation(fields: [roomId], references: [id])
+  oldElectricityUnit  Int?      @map("old_electricity_unit")
+  newElectricityUnit  Int?      @map("new_electricity_unit")
+  oldWaterUnit        Int?      @map("old_water_unit")
+  newWaterUnit        Int?      @map("new_water_unit")
+  createdAt           DateTime? @default(now()) @map("created_at")
+  updatedAt           DateTime? @updatedAt @map("updated_at")
+
+  @@map("meter_log")
+}
