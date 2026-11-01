@@ -20,9 +20,11 @@ function getPort() {
   });
 }
 
-async function initializeDatabase(serverDir) {
-  const requireFromApp = createRequire(path.join(serverDir, "package.json"));
-  const { createClient } = requireFromApp("@libsql/client");
+async function initializeDatabase() {
+  // Electron's production dependencies are packaged with this entry point.
+  // Next's traced server output does not include dependencies used only here.
+  const requireFromElectron = createRequire(import.meta.url);
+  const { createClient } = requireFromElectron("@libsql/client");
   const databasePath = path.join(app.getPath("userData"), "condo.db");
   const client = createClient({ url: `file:${databasePath}` });
 
@@ -73,7 +75,7 @@ async function startApp() {
 
   const port = await getPort();
   const serverDir = path.join(process.resourcesPath, "next-app");
-  const databaseUrl = await initializeDatabase(serverDir);
+  const databaseUrl = await initializeDatabase();
 
   serverProcess = spawn(process.execPath, [path.join(serverDir, "server.js")], {
     cwd: serverDir,
