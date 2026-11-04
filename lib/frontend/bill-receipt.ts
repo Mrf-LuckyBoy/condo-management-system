@@ -205,6 +205,7 @@ function renderReceiptBody(data: ReceiptData): string {
       ? Math.max(0, currentReading - previousReading)
       : ''
 
+  const electricity = bill.electricity ?? 0
   const water = bill.water ?? 0
   const trash = bill.trashMaintain ?? 0
   const meter = bill.meterMaintain ?? 0
@@ -221,7 +222,11 @@ function renderReceiptBody(data: ReceiptData): string {
   return `
   <div class="receipt">
     <div class="receipt__title">นิติบุคคลอาคารชุด เศรษฐกิจซิตี้</div>
-
+    ${electricity > 0
+      ? `<div class="note">
+          ต้องชำระค่าไฟเพิ่ม ${fmtBaht(electricity)} บาท
+        </div>`
+      : ''} 
     <div class="receipt__meta">
       <span>เล่มที่ 001</span>
       <span class="receipt__meta-mid">ใบเสร็จค่าน้ำ</span>
