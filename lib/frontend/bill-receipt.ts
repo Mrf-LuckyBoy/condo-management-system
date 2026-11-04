@@ -211,7 +211,7 @@ function renderReceiptBody(data: ReceiptData): string {
   const meter = bill.meterMaintain ?? 0
   const subtotal = water + trash + meter
 
-  const monthlyUtility = (bill.electricity ?? 0) + (bill.maintain ?? 0)
+  const monthlyUtility = (bill.maintain ?? 0)
   const grandTotal = subtotal + monthlyUtility
 
   const monthLabel = fmtThaiMonth(bill.createdAt)

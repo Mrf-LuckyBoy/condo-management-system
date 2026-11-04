@@ -190,6 +190,17 @@ export default function BillingList() {
   const [payingBilling, setPayingBilling] = useState<Billing | null>(null)
   const [printingBillId, setPrintingBillId] = useState<number | null>(null)
   const [printingAll, setPrintingAll] = useState(false)
+  const [selectedBillIds, setSelectedBillIds] = useState<Set<number>>(() => new Set())
+  const selectedBills = billings.filter((bill) => selectedBillIds.has(bill.id))
+
+  function toggleBillSelection(billId: number) {
+    setSelectedBillIds((previous) => {
+      const next = new Set(previous)
+      if (next.has(billId)) next.delete(billId)
+      else next.add(billId)
+      return next
+    })
+  }
 
   useEffect(() => {
     fetchBuildings()
@@ -262,12 +273,12 @@ export default function BillingList() {
     }
   }
 
-  async function handlePrintAll() {
-    if (billings.length === 0) return
+  async function handlePrintMany(billsToPrint: Billing[]) {
+    if (loading || printingAll || printingBillId !== null || billsToPrint.length === 0) return
     setPrintingAll(true)
     try {
       // Dedupe room fetches: many bills, but each room has one lookup.
-      const uniqueRoomIds = Array.from(new Set(billings.map((b) => b.roomId)))
+      const uniqueRoomIds = Array.from(new Set(billsToPrint.map((b) => b.roomId)))
 
       const [roomPairs, logPairs] = await Promise.all([
         Promise.all(
@@ -287,7 +298,7 @@ export default function BillingList() {
       const roomsById = new Map(roomPairs)
       const logsById = new Map(logPairs)
 
-      const items: ReceiptData[] = billings.map((bill) => {
+      const items: ReceiptData[] = billsToPrint.map((bill) => {
         const room = roomsById.get(bill.roomId) ?? null
         const logs = logsById.get(bill.roomId) ?? []
         const [latestMeterLog = null, previousMeterLog = null] = logs
@@ -299,7 +310,7 @@ export default function BillingList() {
       printReceiptHtml(buildReceiptsHtml(items, `ใบเสร็จ ${month}`))
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      window.alert(`พิมพ์ทั้งเดือนไม่สำเร็จ: ${message}`)
+      window.alert(`พิมพ์ใบเสร็จไม่สำเร็จ: ${message}`)
     } finally {
       setPrintingAll(false)
     }
@@ -325,8 +336,8 @@ export default function BillingList() {
           <button
             type="button"
             className="btn btn--ghost"
-            onClick={handlePrintAll}
-            disabled={billings.length === 0 || printingAll}
+            onClick={() => handlePrintMany(billings)}
+            disabled={loading || billings.length === 0 || printingAll || printingBillId !== null}
             title={
               billings.length === 0
                 ? 'ไม่มีบิลในเดือนนี้'
@@ -334,6 +345,14 @@ export default function BillingList() {
             }
           >
             {printingAll ? 'กำลังเตรียม…' : `↓ พิมพ์ทั้งเดือน (${billings.length})`}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => handlePrintMany(selectedBills)}
+            disabled={loading || printingAll || printingBillId !== null || selectedBills.length === 0}
+          >
+            พิมพ์ที่เลือก ({selectedBills.length})
           </button>
           <button type="button" onClick={() => setDialogOpen(true)}>
             + สร้างบิล
@@ -346,7 +365,12 @@ export default function BillingList() {
           <label>อาคาร</label>
           <Combobox<DropdownItem>
             items={buildings}
-            onSelect={setSelectedBuilding}
+            onSelect={(building) => {
+              if (building === selectedBuilding) return
+              setSelectedBillIds(new Set())
+              setLoading(true)
+              setSelectedBuilding(building)
+            }}
             placeholder={buildingPlaceholder}
             disabled={buildings.length === 0}
             resetSignal={buildingResetSignal}
@@ -354,7 +378,12 @@ export default function BillingList() {
         </div>
         <div className="filters__field">
           <label>เดือน</label>
-          <MonthPicker value={month} onChange={setMonth} />
+          <MonthPicker value={month} onChange={(nextMonth) => {
+            if (nextMonth === month) return
+            setSelectedBillIds(new Set())
+            setLoading(true)
+            setMonth(nextMonth)
+          }} />
         </div>
       </section>
 
@@ -376,7 +405,17 @@ export default function BillingList() {
         ) : (
           billings.map((b) => (
             <div className="billing-table__row" key={b.id}>
-              <div>{roomLabelById.get(b.roomId) ?? `Room #${b.roomId}`}</div>
+              <div>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedBillIds.has(b.id)}
+                    onChange={() => toggleBillSelection(b.id)}
+                    disabled={loading || printingAll || printingBillId !== null}
+                  />
+                  {roomLabelById.get(b.roomId) ?? `Room #${b.roomId}`}
+                </label>
+              </div>
               <div className="num">{formatBaht(b.electricity)}</div>
               <div className="num">{formatBaht(b.water)}</div>
               <div
@@ -419,7 +458,7 @@ export default function BillingList() {
                   type="button"
                   className="btn btn--ghost btn--sm"
                   onClick={() => handlePrint(b)}
-                  disabled={printingBillId === b.id}
+                  disabled={loading || printingAll || printingBillId !== null}
                   title="พิมพ์ใบเสร็จ / บันทึกเป็น PDF"
                 >
                   {printingBillId === b.id ? '…' : 'พิมพ์'}
