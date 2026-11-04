@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-async function removeDanglingSymlinks(directory) {
-  let removed = 0;
+async function checkDependencyLinks(directory) {
+  const broken = [];
 
   async function visit(currentDirectory) {
     const entries = await fs.readdir(currentDirectory, { withFileTypes: true });
@@ -15,8 +15,7 @@ async function removeDanglingSymlinks(directory) {
           await fs.stat(entryPath);
         } catch (error) {
           if (error.code !== "ENOENT") throw error;
-          await fs.rm(entryPath);
-          removed += 1;
+          broken.push(entryPath);
         }
         continue;
       }
@@ -26,11 +25,31 @@ async function removeDanglingSymlinks(directory) {
   }
 
   await visit(directory);
-  if (removed > 0) {
-    console.log(`Removed ${removed} dangling symlink(s) from the packaged app.`);
+  if (broken.length > 0) {
+    throw new Error(`Cannot publish an app with broken dependency links:\n${broken.join("\n")}`);
   }
 }
 
 export default async function afterPack(context) {
-  await removeDanglingSymlinks(context.appOutDir);
+  const projectDir = context.packager.projectDir;
+  const serverDir = path.join(
+    context.packager.getResourcesDir(context.appOutDir), "next-app",
+  );
+  // electron-builder's resource filters omit nested node_modules. Copy the
+  // complete traced server ourselves and materialize links for portability.
+  // This directory is generated build output, never the user's database.
+  await fs.rm(serverDir, { recursive: true, force: true });
+  await fs.cp(path.join(projectDir, ".next", "standalone"), serverDir, {
+    recursive: true,
+    dereference: true,
+  });
+  await fs.cp(path.join(projectDir, ".next", "static"), path.join(serverDir, ".next", "static"), {
+    recursive: true,
+    dereference: true,
+  });
+  await fs.cp(path.join(projectDir, "public"), path.join(serverDir, "public"), {
+    recursive: true,
+    dereference: true,
+  });
+  await checkDependencyLinks(context.appOutDir);
 }

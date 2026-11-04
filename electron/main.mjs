@@ -8,6 +8,8 @@ import { spawn } from "node:child_process";
 let serverProcess;
 let mainWindow;
 let appUrl;
+let serverOutput = "";
+let serverError;
 
 function getPort() {
   return new Promise((resolve, reject) => {
@@ -45,17 +47,20 @@ async function initializeDatabase() {
 
 async function waitForServer(url) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (serverError) throw serverError;
     if (serverProcess.exitCode !== null) {
-      throw new Error(`Next.js server exited with code ${serverProcess.exitCode}`);
+      throw new Error(`Next.js server exited with code ${serverProcess.exitCode}\n${serverOutput}`);
     }
     try {
-      await fetch(url);
-      return;
+      const response = await fetch(`${url}/api/healthcheck`, {
+        signal: AbortSignal.timeout(2000),
+      });
+      if (response.ok) return;
     } catch {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
-  throw new Error("Timed out while starting the Condo Management server.");
+  throw new Error(`Timed out waiting for a healthy Condo Management server.\n${serverOutput}`);
 }
 
 async function startApp() {
@@ -87,8 +92,16 @@ async function startApp() {
       PORT: String(port),
       DATABASE_URL: databaseUrl,
     },
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  for (const stream of [serverProcess.stdout, serverProcess.stderr]) {
+    stream.setEncoding("utf8");
+    stream.on("data", (chunk) => {
+      serverOutput = (serverOutput + chunk).slice(-8000);
+      process.stderr.write(chunk);
+    });
+  }
+  serverProcess.on("error", (error) => { serverError = error; });
 
   appUrl = `http://127.0.0.1:${port}`;
   await waitForServer(appUrl);
