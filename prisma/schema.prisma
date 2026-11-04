@@ -28,6 +28,7 @@ model SettingBuilding {
   baseMaintain       Float?    @map("base_maintain")
   trashMaintain      Float?    @map("trash_maintain")
   meterMaintain      Float?    @map("meter_maintain")
+  billType           String?   @map("bill_type")
   createdAt          DateTime? @default(now()) @map("created_at")
   updatedAt          DateTime? @updatedAt @map("updated_at")
 
