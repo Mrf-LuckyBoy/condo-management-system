@@ -1,12 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Combobox from '@/components/ui/combobox'
 import BillingForm from '@/components/billing/billing-form'
 import BillingEditDialog from '@/components/billing/billing-edit-dialog'
 import BillingPayDialog from '@/components/billing/billing-pay-dialog'
 import {
   fetchBuildings,
+  fetchBuildingSetting,
   fetchRoom,
   fetchRooms,
   fetchRoomMeterLogs,
@@ -175,7 +175,6 @@ export default function BillingList() {
   const [buildings, setBuildings] = useState<DropdownItem[]>([])
   const [buildingsError, setBuildingsError] = useState<string | null>(null)
   const [selectedBuilding, setSelectedBuilding] = useState<DropdownItem | null>(null)
-  const [buildingResetSignal] = useState(0)
 
   const [month, setMonth] = useState<string>(currentMonthValue())
 
@@ -204,15 +203,17 @@ export default function BillingList() {
 
   useEffect(() => {
     fetchBuildings()
-      .then(setBuildings)
+      .then((items) => {
+        setBuildings(items)
+        if (items.length > 0) setSelectedBuilding((current) => current ?? items[0])
+      })
       .catch((err: Error) => setBuildingsError(err.message))
   }, [])
 
   // Load rooms for label lookup. Scoped to selected building when set, otherwise all rooms.
   useEffect(() => {
-    fetchRooms(selectedBuilding ? Number(selectedBuilding.id) : undefined)
-      .then(setRooms)
-      .catch(() => setRooms([]))
+    if (!selectedBuilding) return
+    fetchRooms(Number(selectedBuilding.id)).then(setRooms).catch(() => setRooms([]))
   }, [selectedBuilding])
 
   const roomLabelById = useMemo(() => {
@@ -222,11 +223,18 @@ export default function BillingList() {
   }, [rooms])
 
   const loadBillings = useCallback(async () => {
+    if (!selectedBuilding) {
+      setBillings([])
+      setTotal(0)
+      setLoading(false)
+      setError(null)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
       const res = await listBillings({
-        buildingId: selectedBuilding ? Number(selectedBuilding.id) : undefined,
+        buildingId: Number(selectedBuilding.id),
         // Backend expands YYYY-MM-DD into the whole UTC month.
         date: month ? `${month}-01` : undefined,
         page: 1,
@@ -257,7 +265,8 @@ export default function BillingList() {
     const [latestMeterLog = null, previousMeterLog = null] = meterLogsRes?.data ?? []
     const buildingName =
       (room && buildings.find((b) => Number(b.id) === room.buildingId)?.label) ?? ''
-    return { bill, room, buildingName, latestMeterLog, previousMeterLog }
+    const setting = room ? await fetchBuildingSetting(room.buildingId).catch(() => null) : null
+    return { bill, room, buildingName, latestMeterLog, previousMeterLog, billType: setting?.billType, setting }
   }
 
   async function handlePrint(bill: Billing) {
@@ -297,6 +306,14 @@ export default function BillingList() {
 
       const roomsById = new Map(roomPairs)
       const logsById = new Map(logPairs)
+      const buildingIds = Array.from(new Set(
+        roomPairs.flatMap(([, room]) => room ? [room.buildingId] : []),
+      ))
+      const settingPairs = await Promise.all(buildingIds.map(async (id) => {
+        const setting = await fetchBuildingSetting(id).catch(() => null)
+        return [id, setting] as const
+      }))
+      const settingsByBuildingId = new Map(settingPairs)
 
       const items: ReceiptData[] = billsToPrint.map((bill) => {
         const room = roomsById.get(bill.roomId) ?? null
@@ -304,7 +321,11 @@ export default function BillingList() {
         const [latestMeterLog = null, previousMeterLog = null] = logs
         const buildingName =
           (room && buildings.find((b) => Number(b.id) === room.buildingId)?.label) ?? ''
-        return { bill, room, buildingName, latestMeterLog, previousMeterLog }
+        return {
+          bill, room, buildingName, latestMeterLog, previousMeterLog,
+          billType: room ? settingsByBuildingId.get(room.buildingId)?.billType : null,
+          setting: room ? settingsByBuildingId.get(room.buildingId) : null,
+        }
       })
 
       printReceiptHtml(buildReceiptsHtml(items, `ใบเสร็จ ${month}`))
@@ -315,12 +336,6 @@ export default function BillingList() {
       setPrintingAll(false)
     }
   }
-
-  const buildingPlaceholder = buildingsError
-    ? 'โหลดข้อมูลอาคารไม่สำเร็จ'
-    : buildings.length === 0
-    ? 'กำลังโหลดอาคาร…'
-    : 'ทุกอาคาร'
 
   return (
     <main className="sheet sheet--wide">
@@ -363,18 +378,28 @@ export default function BillingList() {
       <section className="filters">
         <div className="filters__field">
           <label>อาคาร</label>
-          <Combobox<DropdownItem>
-            items={buildings}
-            onSelect={(building) => {
-              if (building === selectedBuilding) return
+          <select
+            id="billing-building"
+            value={selectedBuilding?.id ?? ''}
+            required
+            aria-required="true"
+            disabled={buildings.length === 0 || Boolean(buildingsError)}
+            onChange={(event) => {
+              const building = buildings.find((item) => item.id === Number(event.target.value)) ?? null
+              if (building?.id === selectedBuilding?.id) return
               setSelectedBillIds(new Set())
               setLoading(true)
               setSelectedBuilding(building)
             }}
-            placeholder={buildingPlaceholder}
-            disabled={buildings.length === 0}
-            resetSignal={buildingResetSignal}
-          />
+          >
+            <option value="" disabled>
+              {buildingsError ? 'โหลดข้อมูลอาคารไม่สำเร็จ' : buildings.length === 0 ? 'กำลังโหลดอาคาร…' : 'เลือกอาคาร'}
+            </option>
+            {buildings.map((building) => (
+              <option key={building.id} value={building.id}>{building.label}</option>
+            ))}
+          </select>
+          {buildingsError && <div className="field-error">{buildingsError}</div>}
         </div>
         <div className="filters__field">
           <label>เดือน</label>
@@ -389,7 +414,9 @@ export default function BillingList() {
 
       {error && <div className="banner err">{error}</div>}
 
-      <div className="billing-table">
+      {!selectedBuilding ? (
+        <div className="billing-table__empty">กรุณาเลือกอาคารเพื่อดูรายการบิล</div>
+      ) : <div className="billing-table">
         <div className="billing-table__head">
           <div>ห้อง</div>
           <div className="num">ค่าไฟฟ้า</div>
@@ -467,7 +494,7 @@ export default function BillingList() {
             </div>
           ))
         )}
-      </div>
+      </div>}
 
       <BillingForm
         open={dialogOpen}
