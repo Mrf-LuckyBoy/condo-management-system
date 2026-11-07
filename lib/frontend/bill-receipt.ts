@@ -1,5 +1,6 @@
 import type { Billing } from '@/lib/frontend/billing'
-import type { MeterLog, Room } from '@/lib/frontend/condo-management'
+import type { MeterLog, Room, SettingBuilding } from '@/lib/frontend/condo-management'
+import { renderApartmentReceiptBody } from './bill-receipt-apartment'
 
 // Match the printed receipt template supplied by the user.
 // Charge mapping (documented so it can be adjusted from one place):
@@ -82,6 +83,8 @@ export type ReceiptData = {
   latestMeterLog: MeterLog | null
   // Optional second-latest log; its createdAt is used as the "previous read date".
   previousMeterLog: MeterLog | null
+  billType?: 'standard' | 'apartment' | null
+  setting?: SettingBuilding | null
 }
 
 const RECEIPT_STYLES = `
@@ -184,12 +187,25 @@ const RECEIPT_STYLES = `
     color: #333;
     padding: 0 8px;
   }
+  .apartment-bill.page { width: 210mm; min-height: 297mm; padding: 20mm; margin: 0 auto 20px; background: white; color: #222; font-family: Arial, sans-serif; }
+  .apartment-bill header { border-bottom: 1px solid #ccc; padding-bottom: 12px; margin-bottom: 24px; }
+  .apartment-bill h1 { font-size: 24px; margin: 0 0 10px; }
+  .apartment-bill h2 { font-size: 18px; margin-top: 24px; }
+  .apartment-bill p { font-size: 14px; line-height: 1.6; }
+  .apartment-bill__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  .apartment-bill footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #ccc; font-size: 12px; color: #666; text-align: center; }
+  .apartment-bill footer h2 { font-size: 18px; }
+  .apartment-bill__payment { margin-top: 28px; }
+  .apartment-bill__payment h2 { text-align: center; }
   @media print {
     html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .apartment-bill.page { width: 210mm; min-height: 297mm; margin: 0; padding: 20mm; box-shadow: none; break-after: page; }
+    .apartment-bill.page:last-child { break-after: auto; }
   }
 `
 
 function renderReceiptBody(data: ReceiptData): string {
+  if (data.billType === 'apartment') return renderApartmentReceiptBody(data)
   // buildingName kept on the type but not rendered — the receipt header is a
   // fixed juristic-person string per the printed template.
   const { bill, room, latestMeterLog, previousMeterLog } = data
