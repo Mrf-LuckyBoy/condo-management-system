@@ -24,6 +24,7 @@ export type SettingBuilding = {
   baseMaintain: number | null
   trashMaintain: number | null
   meterMaintain: number | null
+  billType: 'standard' | 'apartment' | null
   createdAt: string | null
   updatedAt: string | null
 }
@@ -147,6 +148,7 @@ export async function fetchBuildings(): Promise<DropdownItem[]> {
 // ============================================================================
 
 export type BuildingSettingPatch = {
+  billType?: 'standard' | 'apartment' | null
   electricityPerUnit?: number | null
   waterPerUnit?: number | null
   baseMaintain?: number | null

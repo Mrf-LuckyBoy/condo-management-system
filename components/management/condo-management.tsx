@@ -509,6 +509,7 @@ function SettingForm({ buildingId, setting, onSaved }: SettingFormProps) {
   const [baseMaintain, setBaseMaintain] = useState('')
   const [trashMaintain, setTrashMaintain] = useState('')
   const [meterMaintain, setMeterMaintain] = useState('')
+  const [billType, setBillType] = useState<'standard' | 'apartment'>('standard')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedTick, setSavedTick] = useState(false)
@@ -520,6 +521,7 @@ function SettingForm({ buildingId, setting, onSaved }: SettingFormProps) {
     setBaseMaintain(toInputValue(setting?.baseMaintain))
     setTrashMaintain(toInputValue(setting?.trashMaintain))
     setMeterMaintain(toInputValue(setting?.meterMaintain))
+    setBillType(setting?.billType === 'apartment' ? 'apartment' : 'standard')
     setError(null)
     setSavedTick(false)
   }, [setting, buildingId])
@@ -531,6 +533,7 @@ function SettingForm({ buildingId, setting, onSaved }: SettingFormProps) {
     setSavedTick(false)
     try {
       const body: BuildingSettingPatch = {
+        billType,
         electricityPerUnit: toNullableNumber(electricityPerUnit),
         waterPerUnit: toNullableNumber(waterPerUnit),
         baseMaintain: toNullableNumber(baseMaintain),
@@ -549,6 +552,13 @@ function SettingForm({ buildingId, setting, onSaved }: SettingFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="stack">
+      <div className="field">
+        <label htmlFor="s-bill-type">รูปแบบบิล</label>
+        <select id="s-bill-type" value={billType} onChange={(e) => setBillType(e.target.value as 'standard' | 'apartment')}>
+          <option value="standard">ใบเสร็จมาตรฐาน</option>
+          <option value="apartment">ใบแจ้งหนี้อพาร์ตเมนต์</option>
+        </select>
+      </div>
       <div className="grid-2">
         <div className="field">
           <label htmlFor="s-elec">ค่าไฟฟ้า / หน่วย (฿)</label>

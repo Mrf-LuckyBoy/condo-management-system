@@ -2,9 +2,16 @@ import { ApiError, errorResponse, id, jsonBody, optionalNumber } from "@/lib/api
 import { condoService } from "@/lib/condo-service";
 
 const settingData = (body: Record<string, unknown>) => ({
+  billType: settingBillType(body.billType),
   electricityPerUnit: optionalNumber(body.electricityPerUnit, "electricityPerUnit"), waterPerUnit: optionalNumber(body.waterPerUnit, "waterPerUnit"),
   baseMaintain: optionalNumber(body.baseMaintain, "baseMaintain"), trashMaintain: optionalNumber(body.trashMaintain, "trashMaintain"), meterMaintain: optionalNumber(body.meterMaintain, "meterMaintain"),
 });
+
+function settingBillType(value: unknown): "standard" | "apartment" | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "standard" || value === "apartment") return value;
+  throw new ApiError("billType must be 'standard' or 'apartment'", 400);
+}
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
